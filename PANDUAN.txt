@@ -1,0 +1,42 @@
+JAJAN — Point of Sale (offline) untuk tablet Android
+=====================================================
+
+ISI PAKET
+  index.html     aplikasi lengkap (bisa dipakai sendirian)
+  manifest.json, sw.js, icon-192.png, icon-512.png
+                 file tambahan agar JAJAN bisa "Instal aplikasi" (PWA) di tablet
+
+CARA PAKAI — PILIH SALAH SATU
+A. Paling cepat (tanpa hosting)
+   1. Salin index.html ke tablet (Download / Google Drive / kabel USB).
+   2. Buka dengan Google Chrome. Semua data tersimpan di Chrome tablet itu.
+   Catatan: mode ini tidak bisa "Instal aplikasi", dan kamera scan barcode
+   serta printer Bluetooth langsung (BLE) butuh mode B.
+
+B. Disarankan — dipasang seperti aplikasi, tetap jalan tanpa internet
+   1. Unggah SEMUA isi folder ini ke hosting statis gratis berbasis https
+      (mis. GitHub Pages, Netlify Drop, Cloudflare Pages).
+   2. Buka alamatnya di Chrome tablet sekali (butuh internet saat pertama).
+   3. Ketuk "Instal aplikasi" (kartu di kiri bawah) atau menu ⋮ › Instal aplikasi.
+   4. Setelah itu JAJAN terbuka penuh layar dan berjalan offline.
+   Data penjualan TIDAK dikirim ke hosting — tetap hanya di tablet.
+
+LOGIN AWAL (segera ganti PIN di Setelan › Kelola Pengguna)
+   Pemilik (Owner) : 1234
+   Admin           : 1111
+   Kasir001 (Kasir): 0000
+
+LANGKAH PERTAMA
+   1. Masuk sebagai Pemilik → menu Stok → Import → pilih file
+      Stok_Produk_Jadi_Semua_Gudang_*.xlsx
+   2. (Opsional) Rekap → Import Data → pilih rekap_per_transaksi_*.xlsx
+      supaya riwayat penjualan lama ikut tampil.
+   3. Setelan → isi nama toko, pajak/layanan, printer.
+
+PRINTER STRUK BLUETOOTH
+   Cara paling andal: pair printer di Bluetooth tablet, pasang aplikasi
+   "RawBT" (Play Store), lalu pilih mode "Dialog cetak" di Setelan.
+
+BACKUP
+   Setelan › Backup Data (.json) secara rutin. File ini juga dipakai untuk
+   memindah data ke tablet lain (Restore dari File).
