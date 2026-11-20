@@ -67,7 +67,7 @@ svg.i.sm{width:16px; height:16px;} svg.i.xs{width:14px; height:14px;}
 .icon-btn.bordered{border-color:var(--line); background:#fff;}
 .net-pill{display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:999px; background:var(--green-soft); color:var(--green-ink); font-size:12px; font-weight:700;}
 .net-pill .dot{width:7px; height:7px; border-radius:50%; background:var(--green);}
-.avatar{width:40px; height:40px; border-radius:50%; background:var(--green); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex:none;}
+.avatar{width:40px; height:40px; border-radius:50%; cursor:pointer; background:var(--green); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex:none;}
 
 .app-body{flex:1; min-height:0; display:flex;}
 .rail{width:84px; flex:none; background:var(--surface); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:14px 0 10px; gap:6px; overflow-y:auto;}
@@ -608,7 +608,15 @@ table.tbl input[type=checkbox]{width:18px; height:18px; accent-color:var(--green
       <span class="net-pill" id="net-pill"><span class="dot"></span><span id="net-text">Offline siap</span></span>
       <button class="icon-btn" id="hdr-help" title="Pintasan keyboard"><svg class="i"><use href="#ic-help"/></svg></button>
       <button class="icon-btn" id="hdr-settings" title="Pengaturan"><svg class="i"><use href="#ic-gear"/></svg></button>
-      <div class="avatar" id="hdr-avatar" title="">?</div>
+      <div class="dropdown">
+        <button class="avatar" id="hdr-avatar" title="Akun">?</button>
+        <div class="dd-menu" id="user-menu">
+          <div style="padding:10px 12px 8px;"><b id="um-name" style="display:block; font-size:14.5px;"></b><span class="faint" id="um-role" style="font-size:12.5px;"></span></div>
+          <hr>
+          <button id="um-switch"><svg class="i sm"><use href="#ic-users"/></svg><span>Ganti Pengguna</span></button>
+          <button id="um-logout" style="color:var(--red);"><svg class="i sm"><use href="#ic-logout"/></svg><span>Keluar</span></button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -623,7 +631,7 @@ table.tbl input[type=checkbox]{width:18px; height:18px; accent-color:var(--green
       <div class="rail-user">
         <div class="avatar" id="rail-avatar">?</div>
         <div class="role" id="rail-role"></div>
-        <button class="icon-btn" id="btn-logout" title="Keluar"><svg class="i"><use href="#ic-logout"/></svg></button>
+        <button class="rail-btn" id="btn-logout" title="Keluar" style="color:var(--red); width:64px;"><svg class="i"><use href="#ic-logout"/></svg>Keluar</button>
       </div>
     </nav>
 
@@ -1619,6 +1627,7 @@ function applyRole(){
   $("rail-avatar").textContent = $("hdr-avatar").textContent = initials(u?.name);
   $("hdr-avatar").title = (u?.name||"") + " — " + (ROLE_LABEL[u?.role]||"");
   $("rail-role").textContent = ROLE_LABEL[u?.role] || "";
+  $("um-name").textContent = u?.name || ""; $("um-role").textContent = ROLE_LABEL[u?.role] || "";
   document.body.classList.toggle("no-profit", !canSeeProfit());
 }
 function updateNet(){
@@ -3242,11 +3251,15 @@ async function doLogin(u){
   await Store.put("session", {key:"current", userId:u.id});
   $("login-screen").classList.add("hidden"); applyRole(); switchView(ROLE_PERMS[u.role][0]); toast(`Selamat datang, ${u.name}`, "ok"); backupReminder();
 }
-$("btn-logout").onclick = async ()=>{
+$("hdr-avatar").onclick = (e)=>{ e.stopPropagation(); $("user-menu").classList.toggle("open"); };
+$("um-logout").onclick = ()=>{ $("user-menu").classList.remove("open"); doLogout(); };
+$("um-switch").onclick = ()=>{ $("user-menu").classList.remove("open"); doLogout(); };
+$("btn-logout").onclick = ()=> doLogout();
+async function doLogout(){
   if(!(await confirmBox(STATE.order.items.length ? "Pesanan aktif belum dibayar dan akan disimpan sebagai Pesanan Terbuka. Keluar?" : "Keluar dari akun ini?", {title:"Keluar", ok:"Ya, keluar", danger:false}))) return;
   if(STATE.order.items.length) await holdOrder(true);
   STATE.currentUser = null; await Store.del("session","current"); showLogin();
-};
+}
 
 /* ============================================================
    24. PWA — pasang ke layar utama & jalan offline
