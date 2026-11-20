@@ -738,11 +738,13 @@ table.tbl input[type=checkbox]{width:18px; height:18px; accent-color:var(--green
                 <div class="dd-menu" id="rk-export-menu">
                   <button data-exp="trx"><svg class="i sm"><use href="#ic-list"/></svg><span>Rekap per Transaksi<small>Satu baris per item produk (28 kolom)</small></span></button>
                   <button data-exp="produk"><svg class="i sm"><use href="#ic-box"/></svg><span>Rekap per Produk<small>Qty, omzet, HPP, laba per produk</small></span></button>
+                  <button data-exp="produkHarian"><svg class="i sm"><use href="#ic-calendar"/></svg><span>Rekap per Produk per Hari<small>Qty & omzet tiap produk di setiap tanggal</small></span></button>
                   <hr>
                   <button data-exp="both"><svg class="i sm"><use href="#ic-layers"/></svg><span>Keduanya (1 file, 2 sheet)</span></button>
                 </div>
               </div>
               <div class="seg">
+                <button data-rkview="produk"><svg class="i sm"><use href="#ic-box"/></svg>Per Produk</button>
                 <button data-rkview="card"><svg class="i sm"><use href="#ic-grid"/></svg>Kartu</button>
                 <button data-rkview="table" class="active"><svg class="i sm"><use href="#ic-list"/></svg>Tabel</button>
               </div>
@@ -750,6 +752,16 @@ table.tbl input[type=checkbox]{width:18px; height:18px; accent-color:var(--green
             <div class="bulkbar" id="rk-bulk"><span id="rk-bulk-n">0 dipilih</span><span style="flex:1"></span><button class="btn sm" id="rk-bulk-export">Export terpilih</button><button class="btn sm danger solid" id="rk-bulk-del">Hapus terpilih</button></div>
             <div id="rk-table-wrap" class="tbl-wrap" style="max-height:62vh;"><table class="tbl"><thead id="rk-thead"></thead><tbody id="rk-tbody"></tbody></table></div>
             <div id="rk-card-wrap" class="rk-cards hide"></div>
+            <div id="rk-prod-wrap" class="hide">
+              <div class="row" style="flex-wrap:wrap; margin-bottom:12px;">
+                <div class="seg green" id="rp-mode"><button data-rpm="total" class="active">Total periode</button><button data-rpm="harian">Rincian per hari</button></div>
+                <select class="input" id="rp-sort" style="width:auto;"><option value="qty">Urut: Qty terbanyak</option><option value="omzet">Urut: Omzet terbesar</option><option value="name">Urut: Nama A–Z</option></select>
+                <span class="muted" id="rp-info" style="font-size:13px;"></span>
+                <span style="flex:1"></span>
+                <button class="btn" id="rp-print"><svg class="i sm"><use href="#ic-printer"/></svg>Cetak Ringkasan</button>
+              </div>
+              <div class="tbl-wrap" style="max-height:62vh;"><table class="tbl"><thead id="rp-thead"></thead><tbody id="rp-tbody"></tbody></table></div>
+            </div>
             <div class="pg-bar" id="rk-pg"></div>
           </div>
         </div>
@@ -2809,12 +2821,13 @@ async function renderRekap(reload=true){
   const k = RK.sortKey, d = RK.sortDir;
   const acc = (t)=> k==="datetime" ? t.datetime : k==="total" ? netSales(t) : k==="qty" ? t.items.reduce((a,i)=> a+i.qty,0) : k==="profit" ? (t.profit||0) : t.datetime;
   list.sort((a,b)=>{ const va = acc(a), vb = acc(b); return va<vb ? -d : va>vb ? d : (b.id - a.id); });
-  RK.filtered = list;
-  RK.view==="table" ? renderRekapTable() : renderRekapCards();
+  RK.filtered = list; RK.scoped = scoped; RK.range = [from, to];
+  RK.view==="table" ? renderRekapTable() : RK.view==="card" ? renderRekapCards() : renderRekapProduk();
 }
 function rkSortTh(key, label, cls=""){ return `<th class="sortable ${cls}" data-rks="${key}">${label} ${RK.sortKey===key ? (RK.sortDir===1?"↑":"↓") : ""}</th>`; }
+function showRkPane(name){ $("rk-table-wrap").classList.toggle("hide", name!=="table"); $("rk-card-wrap").classList.toggle("hide", name!=="card"); $("rk-prod-wrap").classList.toggle("hide", name!=="produk"); $("rk-pg").classList.toggle("hide", name==="produk"); }
 function renderRekapTable(){
-  $("rk-table-wrap").classList.remove("hide"); $("rk-card-wrap").classList.add("hide");
+  showRkPane("table");
   const prof = canSeeProfit(); const {items} = paginate(RK.filtered, RK);
   $("rk-thead").innerHTML = `<tr><th style="width:44px"><input type="checkbox" id="rk-chk-all"></th><th>No. Pesanan</th>${rkSortTh("datetime","Tanggal")}<th>Pelanggan / Meja</th><th>Produk</th>${rkSortTh("qty","Qty","c")}<th class="c">Status Pembayaran</th><th class="r">Harga Jual</th>${rkSortTh("total","Total Omzet","r")}<th class="r">Ongkir</th><th class="r">Diskon</th><th class="r">Pajak+Layanan</th><th class="r">Piutang</th>${prof?`<th class="r">HPP</th>${rkSortTh("profit","Laba Bersih","r")}`:""}<th>Catatan</th><th class="r">Aksi</th></tr>`;
   $("rk-thead").querySelectorAll("[data-rks]").forEach(th=> th.onclick = ()=>{ const k = th.dataset.rks; if(RK.sortKey===k) RK.sortDir *= -1; else { RK.sortKey = k; RK.sortDir = -1; } renderRekap(false); });
@@ -2859,7 +2872,7 @@ function renderRekapTable(){
   updRkBulk();
 }
 function renderRekapCards(){
-  $("rk-table-wrap").classList.add("hide"); $("rk-card-wrap").classList.remove("hide");
+  showRkPane("card");
   const {items} = paginate(RK.filtered, RK);
   $("rk-card-wrap").innerHTML = items.map(t=> `<div class="rk-card" style="${t.status==="refunded"?"opacity:.6":""}">
     <div class="rkc-top"><div><span class="ord-chip">${t.source==="import"?"IMPOR":"POS"}</span><div class="ord-no">${esc(t.orderNo)}</div><div class="faint" style="font-size:12px">${t.dateKey} ${t.source==="import"?"":timeStr(new Date(t.datetime))} • ${esc(t.cashier)}</div></div>${trxStatusBadge(t)}</div>
@@ -2888,7 +2901,66 @@ $("rk-add-manual").onclick = ()=> switchView("kasir");
 $("rk-import").onclick = ()=> openImportRekap();
 $("rk-export-btn").onclick = (e)=>{ e.stopPropagation(); $("rk-export-menu").classList.toggle("open"); };
 $("rk-export-menu").querySelectorAll("[data-exp]").forEach(b=> b.onclick = ()=>{ $("rk-export-menu").classList.remove("open"); exportRekap(b.dataset.exp); });
-document.querySelectorAll("[data-rkview]").forEach(b=> b.onclick = ()=>{ RK.view = b.dataset.rkview; document.querySelectorAll("[data-rkview]").forEach(x=> x.classList.toggle("active", x===b)); RK.view==="table" ? renderRekapTable() : renderRekapCards(); });
+document.querySelectorAll("[data-rkview]").forEach(b=> b.onclick = ()=>{ RK.view = b.dataset.rkview; document.querySelectorAll("[data-rkview]").forEach(x=> x.classList.toggle("active", x===b)); RK.view==="table" ? renderRekapTable() : RK.view==="card" ? renderRekapCards() : renderRekapProduk(); });
+
+/* ---- Rekap penjualan per produk (per periode / per hari) ---- */
+RK.pmode = "total";
+function fmtTgl(k){ const [y,m,d] = k.split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString("id-ID",{weekday:"long", day:"numeric", month:"long", year:"numeric"}); }
+function periodLabel(){ const [f,t] = RK.range||["0000","9999"]; if(f==="0000" && t==="9999") return "Semua tanggal"; const ff = f==="0000" ? "awal" : fmtTgl(f), tt = t==="9999" ? "sekarang" : fmtTgl(t); return f===t ? ff : `${ff} s/d ${tt}`; }
+function aggregateProduk(perDay){
+  const q = $("rk-search").value.trim().toLowerCase(), byProduk = $("rk-searchby").value==="produk";
+  const map = new Map();
+  (RK.scoped||[]).filter(t=> t.status!=="refunded").forEach(t=>{
+    const disc = allocate(t.discount||0, t.items.map(i=> i.subtotal));
+    t.items.forEach((i,k)=>{
+      if(q && byProduk && !i.name.toLowerCase().includes(q)) return;
+      const nm = i.name.trim(); const key = (perDay ? t.dateKey+"|" : "") + nm.toLowerCase();
+      const prod = STATE.products.find(p=> p.id===i.productId) || STATE.products.find(p=> p.name.trim().toLowerCase()===nm.toLowerCase());
+      const r = map.get(key) || {date:t.dateKey, name:nm, cat: prod ? catName(prod.category) : "-", qty:0, omzet:0, hpp:0, trx:new Set()};
+      r.qty += i.qty; r.omzet += i.subtotal - disc[k]; r.hpp += (i.cost||0)*i.qty; r.trx.add(t.id); map.set(key, r);
+    });
+  });
+  const sort = $("rp-sort").value;
+  return [...map.values()].sort((a,b)=> (perDay ? b.date.localeCompare(a.date) : 0) || (sort==="name" ? a.name.localeCompare(b.name) : sort==="omzet" ? b.omzet-a.omzet : b.qty-a.qty || b.omzet-a.omzet));
+}
+function renderRekapProduk(){
+  showRkPane("produk"); const prof = canSeeProfit(); const perDay = RK.pmode==="harian";
+  const rows = aggregateProduk(perDay);
+  const totQty = rows.reduce((s,r)=> s+r.qty,0), totOmzet = rows.reduce((s,r)=> s+r.omzet,0), totHpp = rows.reduce((s,r)=> s+r.hpp,0);
+  const nProd = new Set(rows.map(r=> r.name.toLowerCase())).size;
+  $("rp-info").innerHTML = `${esc(periodLabel())} • <b>${nProd}</b> produk • <b>${nf(totQty)}</b> item terjual`;
+  $("rp-thead").innerHTML = `<tr><th style="width:50px">No</th>${perDay?"<th>Tanggal</th>":""}<th>Produk</th><th>Kategori</th><th class="r">Qty Terjual</th><th class="r">Jml Transaksi</th><th class="r">Omzet</th>${prof?`<th class="r">HPP</th><th class="r">Laba Bersih</th>`:""}<th style="min-width:150px">Kontribusi Omzet</th></tr>`;
+  if(!rows.length){ $("rp-tbody").innerHTML = `<tr><td colspan="10" style="text-align:center; padding:44px; color:var(--ink-faint)">Belum ada produk terjual pada periode ini.</td></tr>`; return; }
+  let h = "", no = 0, lastDate = null; const cols = (perDay?1:0) + (prof?9:7);
+  const dayTotals = {}; if(perDay) rows.forEach(r=>{ const d = dayTotals[r.date] || (dayTotals[r.date] = {qty:0, omzet:0, hpp:0}); d.qty += r.qty; d.omzet += r.omzet; d.hpp += r.hpp; });
+  rows.forEach(r=>{
+    if(perDay && r.date!==lastDate){ lastDate = r.date; no = 0; const d = dayTotals[r.date];
+      h += `<tr class="sub"><td colspan="${cols}" style="color:var(--ink); font-weight:700; background:var(--green-soft)">${ic("calendar","xs")} ${esc(fmtTgl(r.date))} — ${nf(d.qty)} item • ${rp(d.omzet)}${prof?` • laba ${rp(d.omzet-d.hpp)}`:""}</td></tr>`; }
+    const base = perDay ? dayTotals[r.date].omzet : totOmzet; const pct = base ? r.omzet/base*100 : 0;
+    h += `<tr><td>${++no}</td>${perDay?`<td>${r.date}</td>`:""}<td style="white-space:normal; font-weight:600">${esc(r.name)}</td><td><span class="catchip" style="margin:0">${esc(r.cat)}</span></td>
+      <td class="r num" style="font-weight:800; font-size:15px">${nf(r.qty)}</td><td class="r num">${r.trx.size}</td><td class="r num" style="font-weight:600">${rp(r.omzet)}</td>
+      ${prof?`<td class="r num">${rp(r.hpp)}</td><td class="r num" style="color:var(--green); font-weight:700">${rp(r.omzet-r.hpp)}</td>`:""}
+      <td><div class="row" style="gap:8px"><div style="flex:1; height:8px; background:var(--surface-3); border-radius:9px; overflow:hidden"><div style="width:${pct.toFixed(1)}%; height:100%; background:var(--green)"></div></div><span class="faint num" style="font-size:12px; width:42px; text-align:right">${pct.toFixed(1)}%</span></div></td></tr>`;
+  });
+  h += `<tr><td colspan="${perDay?4:3}" style="font-weight:800">TOTAL</td><td class="r num" style="font-weight:800">${nf(totQty)}</td><td></td><td class="r num" style="font-weight:800">${rp(totOmzet)}</td>${prof?`<td class="r num" style="font-weight:800">${rp(totHpp)}</td><td class="r num" style="font-weight:800; color:var(--green)">${rp(totOmzet-totHpp)}</td>`:""}<td></td></tr>`;
+  $("rp-tbody").innerHTML = h;
+}
+document.querySelectorAll("#rp-mode [data-rpm]").forEach(b=> b.onclick = ()=>{ RK.pmode = b.dataset.rpm; document.querySelectorAll("#rp-mode [data-rpm]").forEach(x=> x.classList.toggle("active", x===b)); renderRekapProduk(); });
+$("rp-sort").onchange = renderRekapProduk;
+$("rp-print").onclick = ()=>{
+  const perDay = RK.pmode==="harian"; const rows = aggregateProduk(perDay); if(!rows.length){ toast("Tidak ada data", true); return; }
+  const s = STATE.settings; let h = `<h2>${esc(s.storeName||"JAJAN")}</h2><div class="c b">REKAP PENJUALAN PRODUK</div><div class="c">${esc(periodLabel())}</div>`;
+  if(RK.kasir!=="all") h += `<div class="c">Kasir: ${esc(RK.kasir)}</div>`;
+  h += `<div class="c">Dicetak ${fmtDateTime(new Date().toISOString())}</div><hr>`;
+  let last = null, dq = 0, dom = 0;
+  const flushDay = ()=>{ if(perDay && last!==null) h += `<div class="r b"><span>Subtotal ${nf(dq)} item</span><span>${nf(dom)}</span></div><hr>`; dq = 0; dom = 0; };
+  rows.forEach(r=>{ if(perDay && r.date!==last){ flushDay(); last = r.date; h += `<div class="b">${esc(fmtTgl(r.date))}</div>`; }
+    h += `<div class="r"><span>${nf(r.qty)} x ${esc(r.name)}</span><span>${nf(r.omzet)}</span></div>`; dq += r.qty; dom += r.omzet; });
+  flushDay();
+  if(!perDay) h += `<hr>`;
+  h += `<div class="r big"><span>TOTAL ${nf(rows.reduce((a,r)=> a+r.qty,0))} item</span><span>${nf(rows.reduce((a,r)=> a+r.omzet,0))}</span></div>`;
+  printHtml(h);
+};
 $("rk-bulk-export").onclick = ()=> exportRekap("both", RK.all.filter(t=> RK.sel.has(t.id)));
 $("rk-bulk-del").onclick = ()=> deleteTrx([...RK.sel]);
 
@@ -3012,6 +3084,13 @@ async function exportRekap(kind, list){
   if(!canSeeProfit()){ tSheet.rows.forEach(r=>{ r[19] = "-"; r[20] = "-"; }); }
   if(kind==="trx") downloadBlob(`rekap_per_transaksi_${d}.xlsx`, await buildXlsx([tSheet]));
   else if(kind==="produk") downloadBlob(`rekap_per_produk_${d}.xlsx`, await buildXlsx([pSheet]));
+  else if(kind==="produkHarian"){
+    const map = new Map();
+    list.filter(t=> t.status!=="refunded").forEach(t=>{ const disc = allocate(t.discount||0, t.items.map(i=> i.subtotal));
+      t.items.forEach((i,k)=>{ const key = t.dateKey+"|"+i.name.trim().toLowerCase(); const r = map.get(key) || {date:t.dateKey, name:i.name.trim(), qty:0, omzet:0, hpp:0}; r.qty += i.qty; r.omzet += i.subtotal-disc[k]; r.hpp += (i.cost||0)*i.qty; map.set(key, r); }); });
+    const rows = [...map.values()].sort((a,b)=> b.date.localeCompare(a.date) || b.qty-a.qty).map((r,i)=> [i+1, r.date, r.name, r.qty, r.omzet, r.hpp, r.omzet-r.hpp]);
+    downloadBlob(`rekap_per_produk_harian_${d}.xlsx`, await buildXlsx([{name:"Per Produk per Hari", header:["No","Tanggal","Nama Produk","Total Qty Terjual","Total Omzet","Total HPP","Laba Bersih"], rows, moneyCols:[4,5,6]}]));
+  }
   else downloadBlob(`rekap_penjualan_${d}.xlsx`, await buildXlsx([{...tSheet, name:"Per Transaksi"}, {...pSheet, name:"Per Produk"}]));
   toast("File rekap diunduh", "ok");
 }
