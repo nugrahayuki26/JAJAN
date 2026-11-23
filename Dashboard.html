@@ -145,7 +145,7 @@ function render(){
     card('#3CB371','Total Omzet', rp(c.omzet), c.trx+' transaksi') +
     card('#4F46E5','Laba Bersih', rp(c.profit), 'Margin '+c.margin.toFixed(1)+'%') +
     card('#2F8F83','Uang Laci (Tunai)', rp(c.cash), 'Tunai yang diterima') +
-    card('#F59E0B','Piutang', rp(c.piutang), c.refunded ? c.refunded+' transaksi dibatalkan' : 'Belum dibayar') +
+    card('#2563EB','QRIS', rp(c.qris), c.qrisTrx + ' transaksi via QRIS') +
     card('#64748B','Biaya HPP', rp(c.hpp), '') +
     card('#A855F7','Item Terjual', nf(c.items), '') +
     card('#0EA5E9','Rata-rata / Transaksi', rp(c.avg), '') +

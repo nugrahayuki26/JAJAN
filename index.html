@@ -3237,7 +3237,7 @@ const SYNC = { busy:false, timer:null, pending:0, last:null, error:"" };
 const syncCfg = ()=> STATE.settings.sync || {};
 const syncOn = ()=> { const c = syncCfg(); return !!(c.enabled && c.url && c.token); };
 function scheduleSync(ms=3000){ if(!syncOn()) return; clearTimeout(SYNC.timer); SYNC.timer = setTimeout(()=> runSync(), ms); }
-function trxSig(t){ return [t.status, t.outstanding, t.paidAmount, t.orderStatus||"", t.note||"", t.method, t.total, (t.payments||[]).length, t.customer?.name||"", t.customer?.table||"", t.datetime, t.cashier||"", t.discount||0, (t.editLog||[]).length, t.items.map(i=> i.name+"*"+i.qty+"@"+i.price).join(",")].join("|"); }
+function trxSig(t){ return ["v2", t.status, t.outstanding, t.paidAmount, t.orderStatus||"", t.note||"", t.method, t.total, (t.payments||[]).length, t.customer?.name||"", t.customer?.table||"", t.datetime, t.cashier||"", t.discount||0, (t.editLog||[]).length, t.items.map(i=> i.name+"*"+i.qty+"@"+i.price).join(",")].join("|"); }
 function strHash(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36) + ":" + s.length; }
 async function metaGet(k, def){ const r = await Store.get("meta", k); return r ? r.v : def; }
 async function metaSet(k, v){ await Store.put("meta", {key:k, v}); }
@@ -3251,7 +3251,8 @@ function syncTrxRow(t){
     cu.name||"", cu.table||"", cu.phone||"", t.cashier||"-", t.method||"", t.status,
     t.subtotal||0, t.discount||0, t.tax||0, t.service||0, t.shipping||0, t.total||0, t.totalCost||0, refunded ? 0 : (t.profit||0),
     t.paidAmount||0, t.outstanding||0, refunded ? 0 : cash, t.orderStatus||"", t.note||"", qty,
-    t.items.map(i=> `${i.qty}x ${i.name}`).join(", ").slice(0, 400), t.gudang||"", syncCfg().device||"Tablet", t.source||"pos", new Date().toISOString()];
+    t.items.map(i=> `${i.qty}x ${i.name}`).join(", ").slice(0, 400), t.gudang||"", syncCfg().device||"Tablet", t.source||"pos", new Date().toISOString(),
+    refunded ? 0 : (t.payments||[]).filter(p=> p.method==="QRIS").reduce((s,p)=> s+p.amount, 0)];
 }
 function syncItemRows(t){
   const d = new Date(t.datetime); const time = t.source==="import" ? "" : `${pad(d.getHours())}:${pad(d.getMinutes())}`;

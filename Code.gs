@@ -16,7 +16,7 @@ const SHEETS = {
     name: 'Transaksi',
     header: ['No. Pesanan','Tanggal','Jam','Channel','Pelanggan','Meja','No. HP','Kasir','Metode Bayar','Status Pembayaran',
              'Subtotal','Diskon','Pajak','Service Charge','Ongkir','Total','HPP','Laba Bersih','Dibayar','Sisa Piutang','Tunai Masuk',
-             'Status Pesanan','Catatan','Jml Item','Produk','Gudang','Perangkat','Sumber','Diperbarui'],
+             'Status Pesanan','Catatan','Jml Item','Produk','Gudang','Perangkat','Sumber','Diperbarui','QRIS Masuk'],
     textCols: [1,2,3,7],
   },
   item: {
@@ -52,6 +52,9 @@ function sheet_(k) {
     sh.setFrozenRows(1);
     // kolom tanggal/jam/kode disimpan sebagai teks agar tidak diubah otomatis oleh Sheets
     cfg.textCols.forEach(function (c) { sh.getRange(1, c, sh.getMaxRows(), 1).setNumberFormat('@'); });
+  } else if (sh.getLastColumn() < cfg.header.length) {
+    // kolom baru ditambahkan di versi terbaru → perbarui baris judul
+    sh.getRange(1, 1, 1, cfg.header.length).setValues([cfg.header]).setFontWeight('bold').setBackground('#E7F5EE');
   }
   return sh;
 }
@@ -178,7 +181,9 @@ function getReport(key, from, to) {
     return { no: txt_(r[0]), date: txt_(r[1]), time: txt_(r[2]), channel: txt_(r[3]), customer: txt_(r[4]), table: txt_(r[5]),
       cashier: txt_(r[7]), method: txt_(r[8]), status: txt_(r[9]), subtotal: num_(r[10]), discount: num_(r[11]), tax: num_(r[12]),
       service: num_(r[13]), shipping: num_(r[14]), total: num_(r[15]), hpp: num_(r[16]), profit: num_(r[17]), paid: num_(r[18]),
-      outstanding: num_(r[19]), cash: num_(r[20]), items: num_(r[23]), products: txt_(r[24]), device: txt_(r[26]) };
+      outstanding: num_(r[19]), cash: num_(r[20]), items: num_(r[23]), products: txt_(r[24]), device: txt_(r[26]),
+      // QRIS Masuk (kolom baru); data lama tanpa kolom ini: pakai total transaksi ber-metode QRIS
+      qris: r[29] !== '' && r[29] !== undefined ? num_(r[29]) : (txt_(r[8]) === 'QRIS' ? num_(r[18]) : 0) };
   }).filter(function (t) { return t.no && inRange(t.date); });
   const valid = trx.filter(function (t) { return t.status !== 'refunded'; });
   const sum = function (arr, f) { return arr.reduce(function (s, x) { return s + f(x); }, 0); };
@@ -219,6 +224,7 @@ function getReport(key, from, to) {
     cards: {
       omzet: omzet, hpp: hpp, profit: omzet - hpp, margin: omzet ? (omzet - hpp) / omzet * 100 : 0,
       trx: valid.length, items: sum(valid, function (t) { return t.items; }), cash: sum(valid, function (t) { return t.cash; }),
+      qris: sum(valid, function (t) { return t.qris; }), qrisTrx: valid.filter(function (t) { return t.qris > 0; }).length,
       piutang: sum(valid, function (t) { return t.outstanding; }), refunded: trx.length - valid.length,
       avg: valid.length ? omzet / valid.length : 0,
     },
