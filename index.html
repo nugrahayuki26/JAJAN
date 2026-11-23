@@ -1180,6 +1180,59 @@ table.tbl input[type=checkbox]{width:18px; height:18px; accent-color:var(--green
   </div>
 </div>
 
+<!-- Ubah transaksi (owner) -->
+<div class="modal-overlay" id="m-edit">
+  <div class="modal w-lg">
+    <div class="modal-head"><div><h3>Ubah Transaksi</h3><div class="muted" style="font-size:13px" id="ed-sub"></div></div><button class="x" data-close><svg class="i"><use href="#ic-x"/></svg></button></div>
+    <div class="modal-body">
+      <div class="grid3">
+        <div class="field"><label>Tanggal &amp; jam</label><input type="datetime-local" class="input" id="ed-dt"></div>
+        <div class="field"><label>Kasir</label><input class="input" id="ed-kasir" list="ed-kasir-list"><datalist id="ed-kasir-list"></datalist></div>
+        <div class="field"><label>Channel</label><select class="input" id="ed-channel"><option>Offline</option><option>Take Away</option><option>Delivery</option><option>Online</option></select></div>
+      </div>
+      <div class="grid3">
+        <div class="field"><label>Pelanggan</label><input class="input" id="ed-cust" placeholder="Pelanggan Umum"></div>
+        <div class="field"><label>No. HP</label><input class="input" id="ed-phone"></div>
+        <div class="field"><label>Meja</label><input class="input" id="ed-table"></div>
+      </div>
+
+      <div class="pm-label" style="margin-top:4px;">Item Pesanan</div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Produk</th><th class="c">Qty</th><th class="r">Harga</th><th class="r">Subtotal</th><th></th></tr></thead><tbody id="ed-items"></tbody></table></div>
+      <div class="row" style="margin-top:8px; position:relative;">
+        <div class="input-icon" style="flex:1"><svg class="i sm"><use href="#ic-search"/></svg><input class="input" id="ed-add" placeholder="Tambah produk: ketik nama / SKU / barcode…" autocomplete="off"></div>
+        <div class="gs-results" id="ed-add-res" style="top:46px;"></div>
+      </div>
+
+      <div class="grid3" style="margin-top:14px;">
+        <div class="field"><label>Diskon (Rp)</label><input class="input num" id="ed-disc" inputmode="numeric"></div>
+        <div class="field"><label>Ongkir (Rp)</label><input class="input num" id="ed-ship" inputmode="numeric"></div>
+        <div class="field"><label>Pajak + Layanan (Rp)</label><div class="row"><input class="input num" id="ed-tax" inputmode="numeric" placeholder="Pajak"><input class="input num" id="ed-svc" inputmode="numeric" placeholder="Layanan"></div></div>
+      </div>
+
+      <div class="pm-label">Pembayaran</div>
+      <div class="grid2">
+        <div class="field"><label>Status</label><div class="seg green" id="ed-status"><button data-es="paid">Lunas</button><button data-es="credit">Belum lunas (Piutang)</button></div></div>
+        <div class="field"><label>Metode bayar</label><div class="seg" id="ed-method"><button data-em="Tunai">Tunai</button><button data-em="QRIS">QRIS</button><button data-em="Transfer">Transfer</button><button data-em="Split">Split</button></div></div>
+      </div>
+      <div id="ed-pay-single" class="grid2">
+        <div class="field" id="ed-cash-wrap"><label id="ed-amt-lbl">Uang diterima</label><input class="input num" id="ed-amt" inputmode="numeric"></div>
+        <div class="field" id="ed-ref-wrap"><label>No. referensi (opsional)</label><input class="input" id="ed-ref"></div>
+      </div>
+      <div id="ed-pay-split" class="hide"><div id="ed-split-rows"></div><button class="btn sm" id="ed-split-add">+ Tambah metode</button></div>
+
+      <div class="grid2" style="margin-top:12px;">
+        <div class="field"><label>Status pesanan</label><select class="input" id="ed-ost"><option>Baru</option><option>Diproses</option><option>Selesai</option></select></div>
+        <div class="field"><label>Catatan</label><input class="input" id="ed-note"></div>
+      </div>
+      <div class="field"><label>Alasan perubahan (dicatat di riwayat)</label><input class="input" id="ed-reason" placeholder="mis. salah input metode bayar"></div>
+
+      <div class="sum-box" id="ed-sum"></div>
+      <div class="note-box warn hide" id="ed-warn" style="margin-top:10px;"></div>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>Batal</button><button class="btn primary" id="ed-save"><svg class="i sm"><use href="#ic-check"/></svg>Simpan Perubahan</button></div>
+  </div>
+</div>
+
 <!-- Pelunasan -->
 <div class="modal-overlay" id="m-settle">
   <div class="modal">
@@ -1238,7 +1291,7 @@ table.tbl input[type=checkbox]{width:18px; height:18px; accent-color:var(--green
 <div class="modal-overlay" id="m-confirm" style="z-index:150;">
   <div class="modal w-sm">
     <div class="modal-head"><h3 id="cf-title">Konfirmasi</h3><button class="x" id="cf-x"><svg class="i"><use href="#ic-x"/></svg></button></div>
-    <div class="modal-body"><p id="cf-msg" style="font-size:14.5px; line-height:1.55;"></p></div>
+    <div class="modal-body"><p id="cf-msg" style="font-size:14.5px; line-height:1.55; white-space:pre-line;"></p></div>
     <div class="modal-foot"><button class="btn" id="cf-no">Batal</button><button class="btn danger solid" id="cf-yes">Ya, Lanjutkan</button></div>
   </div>
 </div>
@@ -2874,6 +2927,7 @@ function renderRekapTable(){
       <td style="white-space:normal; max-width:160px; font-size:12.5px">${esc(t.note||"-")}</td>
       <td class="r"><div class="act-icons">
         <button class="a-view" title="Detail" data-tv="${t.id}">${ic("eye")}</button>
+        ${isOwner() && t.status!=="refunded" ? `<button class="a-edit" title="Ubah transaksi" data-te="${t.id}">${ic("pencil")}</button>`:""}
         <button class="a-print" title="Cetak struk" data-tp="${t.id}">${ic("printer")}</button>
         ${t.outstanding>0 && t.status!=="refunded" ? `<button class="a-pay" title="Pelunasan" data-tpay="${t.id}">${ic("wallet")}</button>`:""}
         ${t.status!=="refunded" ? `<button class="a-refund" title="Batalkan / refund" data-tr="${t.id}">${ic("undo")}</button>`:""}
@@ -2899,13 +2953,14 @@ function renderRekapCards(){
     <div class="rkc-items">${t.items.map(i=> `<div><span>${i.qty}× ${esc(i.name)}</span><span class="num">${rp(i.subtotal)}</span></div>`).join("")}</div>
     <div class="rkc-tot"><span>Total</span><span class="num">${rp(t.total)}</span></div>
     ${t.outstanding?`<div class="sum-row"><span>Sisa piutang</span><b style="color:var(--amber)">${rp(t.outstanding)}</b></div>`:""}
-    <div class="act-icons" style="margin-top:8px"><button class="a-view" data-tv="${t.id}">${ic("eye")}</button><button class="a-print" data-tp="${t.id}">${ic("printer")}</button>${t.outstanding>0&&t.status!=="refunded"?`<button class="a-pay" data-tpay="${t.id}">${ic("wallet")}</button>`:""}${t.status!=="refunded"?`<button class="a-refund" data-tr="${t.id}">${ic("undo")}</button>`:""}${isOwner()?`<button class="a-del" data-td="${t.id}">${ic("trash")}</button>`:""}</div>
+    <div class="act-icons" style="margin-top:8px"><button class="a-view" data-tv="${t.id}">${ic("eye")}</button>${isOwner() && t.status!=="refunded" ? `<button class="a-edit" data-te="${t.id}">${ic("pencil")}</button>`:""}<button class="a-print" data-tp="${t.id}">${ic("printer")}</button>${t.outstanding>0&&t.status!=="refunded"?`<button class="a-pay" data-tpay="${t.id}">${ic("wallet")}</button>`:""}${t.status!=="refunded"?`<button class="a-refund" data-tr="${t.id}">${ic("undo")}</button>`:""}${isOwner()?`<button class="a-del" data-td="${t.id}">${ic("trash")}</button>`:""}</div>
   </div>`).join("") || `<div class="empty" style="grid-column:1/-1">Belum ada transaksi pada filter ini.</div>`;
   bindRekapActions($("rk-card-wrap"));
   renderPager($("rk-pg"), RK, RK.filtered.length, renderRekapCards);
 }
 function bindRekapActions(root){
   root.querySelectorAll("[data-tv]").forEach(b=> b.onclick = ()=> showTrxDetail(+b.dataset.tv));
+  root.querySelectorAll("[data-te]").forEach(b=> b.onclick = ()=> openEditTrx(+b.dataset.te));
   root.querySelectorAll("[data-tp]").forEach(b=> b.onclick = ()=> printReceipt(RK.all.find(t=> t.id===+b.dataset.tp)));
   root.querySelectorAll("[data-tpay]").forEach(b=> b.onclick = ()=> openSettle(+b.dataset.tpay));
   root.querySelectorAll("[data-tr]").forEach(b=> b.onclick = ()=> refundTrx(+b.dataset.tr));
@@ -3005,12 +3060,15 @@ async function showTrxDetail(id){
       ${prof?`<div class="sum-row"><span>HPP / Laba bersih</span><b>${rp(t.totalCost)} / <span style="color:var(--green)">${rp(t.status==="refunded"?0:t.profit)}</span></b></div>`:""}
     </div>
     <div class="field" style="margin-top:14px;"><label>Catatan</label><div class="row"><input class="input" id="trx-note" value="${esc(t.note||"")}"><button class="btn" id="trx-note-save">Simpan</button></div></div>
+    ${(t.editLog||[]).length?`<div class="note-box"><b>Riwayat perubahan</b>${t.editLog.slice().reverse().map(l=> `<div style="margin-top:4px">• ${fmtDateTime(l.at)} oleh ${esc(l.user)}: ${esc(l.summary)}</div>`).join("")}</div>`:""}
     ${t.refundInfo?`<div class="note-box warn">Dibatalkan ${fmtDateTime(t.refundInfo.datetime)} oleh ${esc(t.refundInfo.user)}${t.refundInfo.reason?" — "+esc(t.refundInfo.reason):""}</div>`:""}`;
   $("trx-foot").innerHTML = `${t.status!=="refunded" && canAccess("rekap")?`<button class="btn danger" id="trx-refund" style="margin-right:auto">${ic("undo")}Batalkan / Refund</button>`:""}
     ${t.outstanding>0 && t.status!=="refunded"?`<button class="btn soft-green" id="trx-settle">${ic("wallet")}Pelunasan</button>`:""}
+    ${isOwner() && t.status!=="refunded" ? `<button class="btn" id="trx-edit" style="color:var(--blue)">${ic("pencil")}Ubah</button>`:""}
     <button class="btn" id="trx-print">${ic("printer")}Cetak Struk</button><button class="btn primary" data-close>Tutup</button>`;
   $("trx-note-save").onclick = async ()=>{ t.note = $("trx-note").value.trim(); await Store.put("transactions", t); scheduleSync(); toast("Catatan disimpan","ok"); if(STATE.view==="rekap") renderRekap(false); };
   $("trx-print").onclick = ()=> printReceipt(t);
+  $("trx-edit") && ($("trx-edit").onclick = ()=>{ closeModal("m-trx"); openEditTrx(t.id); });
   $("trx-refund") && ($("trx-refund").onclick = ()=>{ closeModal("m-trx"); refundTrx(t.id); });
   $("trx-settle") && ($("trx-settle").onclick = ()=>{ closeModal("m-trx"); openSettle(t.id); });
   openModal("m-trx");
@@ -3179,7 +3237,7 @@ const SYNC = { busy:false, timer:null, pending:0, last:null, error:"" };
 const syncCfg = ()=> STATE.settings.sync || {};
 const syncOn = ()=> { const c = syncCfg(); return !!(c.enabled && c.url && c.token); };
 function scheduleSync(ms=3000){ if(!syncOn()) return; clearTimeout(SYNC.timer); SYNC.timer = setTimeout(()=> runSync(), ms); }
-function trxSig(t){ return [t.status, t.outstanding, t.paidAmount, t.orderStatus||"", t.note||"", t.method, t.total, (t.payments||[]).length, t.customer?.name||"", t.customer?.table||""].join("|"); }
+function trxSig(t){ return [t.status, t.outstanding, t.paidAmount, t.orderStatus||"", t.note||"", t.method, t.total, (t.payments||[]).length, t.customer?.name||"", t.customer?.table||"", t.datetime, t.cashier||"", t.discount||0, (t.editLog||[]).length, t.items.map(i=> i.name+"*"+i.qty+"@"+i.price).join(",")].join("|"); }
 function strHash(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36) + ":" + s.length; }
 async function metaGet(k, def){ const r = await Store.get("meta", k); return r ? r.v : def; }
 async function metaSet(k, v){ await Store.put("meta", {key:k, v}); }
@@ -3299,6 +3357,189 @@ $("sync-token-gen").onclick = ()=>{ const a = new Uint8Array(12); crypto.getRand
 window.addEventListener("online", ()=> scheduleSync(1500));
 setInterval(()=> scheduleSync(0), 120000);
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") scheduleSync(1000); });
+</script>
+<script>
+/* ============================================================
+   20c. UBAH / EDIT TRANSAKSI (khusus Owner)
+   - Ubah tanggal, kasir, pelanggan, item (qty/harga/tambah/hapus),
+     diskon, ongkir, pajak, metode bayar (termasuk split), status lunas/piutang.
+   - Selisih qty item otomatis menyesuaikan stok + tercatat di riwayat stok.
+   - Setiap perubahan dicatat di riwayat transaksi (editLog).
+   ============================================================ */
+const ED = { id:null, orig:null, items:[], status:"paid", method:"Tunai", split:[] };
+function toLocalInput(iso){ const d = new Date(iso); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+async function openEditTrx(id){
+  if(!isOwner()){ toast("Hanya Owner yang dapat mengubah transaksi", true); return; }
+  const t = await Store.get("transactions", id); if(!t) return;
+  if(t.status==="refunded"){ toast("Transaksi yang sudah dibatalkan tidak bisa diubah", true); return; }
+  ED.id = id; ED.orig = JSON.parse(JSON.stringify(t)); ED.items = JSON.parse(JSON.stringify(t.items));
+  ED.status = t.status==="paid" ? "paid" : "credit";
+  ED.method = PAY_METHODS.some(m=> m.k===t.method) || t.method==="Split" ? t.method : "Tunai";
+  const byM = {}; (t.payments||[]).forEach(p=> byM[p.method] = (byM[p.method]||0) + p.amount);
+  ED.split = Object.entries(byM).map(([method, amount])=> ({method, amount}));
+  if(ED.split.length<2) ED.split = [{method:"Tunai", amount:0}, {method:"QRIS", amount:0}];
+  $("ed-sub").textContent = `${t.orderNo} • dibuat ${fmtDateTime(t.datetime)} oleh ${t.cashier||"-"}`;
+  $("ed-dt").value = toLocalInput(t.datetime);
+  const users = (await Store.all("users")).map(u=> u.name); const names = [...new Set([...users, ...RK.all.map(x=> x.cashier).filter(Boolean)])];
+  $("ed-kasir-list").innerHTML = names.map(n=> `<option value="${esc(n)}">`).join(""); $("ed-kasir").value = t.cashier||"";
+  $("ed-channel").value = t.channel||"Offline";
+  $("ed-cust").value = t.customer?.name||""; $("ed-phone").value = t.customer?.phone||""; $("ed-table").value = t.customer?.table||"";
+  setMoney($("ed-disc"), t.discount); setMoney($("ed-ship"), t.shipping); setMoney($("ed-tax"), t.tax); setMoney($("ed-svc"), t.service);
+  const amt = ED.status==="paid" ? (t.method==="Tunai" ? Math.max(t.cashReceived||0, t.total) : t.total) : (t.paidAmount||0);
+  setMoney($("ed-amt"), amt); $("ed-ref").value = (t.payments||[])[0]?.ref || "";
+  $("ed-ost").value = t.orderStatus||"Baru"; $("ed-note").value = t.note||""; $("ed-reason").value = "";
+  $("ed-add").value = ""; $("ed-add-res").classList.remove("open");
+  renderEdit(); openModal("m-edit");
+}
+function edCalc(){
+  const subtotal = ED.items.reduce((s,i)=> s + i.price*i.qty, 0);
+  const totalCost = ED.items.reduce((s,i)=> s + (i.cost||0)*i.qty, 0);
+  const discount = Math.min(getMoney($("ed-disc")), subtotal);
+  const tax = getMoney($("ed-tax")), service = getMoney($("ed-svc")), shipping = getMoney($("ed-ship"));
+  return {subtotal, totalCost, discount, tax, service, shipping, total: subtotal - discount + tax + service + shipping};
+}
+function renderEdit(){
+  // item
+  $("ed-items").innerHTML = ED.items.map((i,k)=> `<tr>
+    <td style="white-space:normal; min-width:180px"><b>${esc(i.name)}</b>${i.sku?`<div class="faint" style="font-size:11.5px">${esc(i.sku)}</div>`:""}</td>
+    <td class="c"><div class="qty" style="justify-content:center"><button data-eqd="${k}">${ic("minus","xs")}</button><input class="num" data-eq="${k}" value="${i.qty}" inputmode="numeric"><button data-eqi="${k}">${ic("plus","xs")}</button></div></td>
+    <td class="r"><input class="input num" data-ep="${k}" value="${(+i.price).toLocaleString("id-ID")}" inputmode="numeric" style="width:120px; height:36px; text-align:right"></td>
+    <td class="r num" style="font-weight:700">${rp(i.price*i.qty)}</td>
+    <td class="r"><button class="btn sm danger" data-ex="${k}" ${ED.items.length<=1?"disabled title='Minimal 1 item'":""}>${ic("trash","xs")}</button></td></tr>`).join("");
+  const tb = $("ed-items");
+  tb.querySelectorAll("[data-eqi]").forEach(b=> b.onclick = ()=>{ ED.items[+b.dataset.eqi].qty++; renderEdit(); });
+  tb.querySelectorAll("[data-eqd]").forEach(b=> b.onclick = ()=>{ const it = ED.items[+b.dataset.eqd]; if(it.qty>1){ it.qty--; renderEdit(); } });
+  tb.querySelectorAll("[data-eq]").forEach(inp=>{ inp.onfocus = ()=> inp.select(); inp.onchange = ()=>{ ED.items[+inp.dataset.eq].qty = Math.max(1, Math.round(toNum(inp.value))||1); renderEdit(); }; });
+  tb.querySelectorAll("[data-ep]").forEach(inp=>{ inp.onfocus = ()=> inp.select(); inp.onchange = ()=>{ ED.items[+inp.dataset.ep].price = Math.max(0, Math.round(toNum(inp.value.replace(/\./g,"")))); renderEdit(); }; });
+  tb.querySelectorAll("[data-ex]").forEach(b=> b.onclick = ()=>{ if(ED.items.length>1){ ED.items.splice(+b.dataset.ex,1); renderEdit(); } });
+  // pembayaran
+  if(ED.status==="credit" && ED.method==="Split") ED.method = "Tunai";
+  document.querySelectorAll("#ed-status [data-es]").forEach(b=> b.classList.toggle("active", b.dataset.es===ED.status));
+  document.querySelectorAll("#ed-method [data-em]").forEach(b=>{ b.classList.toggle("active", b.dataset.em===ED.method); b.classList.toggle("hide", b.dataset.em==="Split" && ED.status==="credit"); });
+  const split = ED.method==="Split" && ED.status==="paid";
+  $("ed-pay-single").classList.toggle("hide", split); $("ed-pay-split").classList.toggle("hide", !split);
+  $("ed-cash-wrap").classList.toggle("hide", ED.status==="paid" && ED.method!=="Tunai");
+  $("ed-amt-lbl").textContent = ED.status==="credit" ? "DP / sudah dibayar (boleh 0)" : "Uang diterima";
+  const c = edCalc();
+  if(split){
+    $("ed-split-rows").innerHTML = ED.split.map((r,i)=> `<div class="split-row"><select class="input" data-esm="${i}">${PAY_METHODS.map(m=> `<option ${r.method===m.k?"selected":""}>${m.k}</option>`).join("")}</select>
+      <input class="input num" data-esa="${i}" inputmode="numeric" value="${r.amount?(+r.amount).toLocaleString("id-ID"):""}" placeholder="0">
+      <button class="btn sm" data-esf="${i}">Sisa</button><button class="btn" data-esx="${i}" ${ED.split.length<=1?"disabled":""}>${ic("x","xs")}</button></div>`).join("");
+    const w = $("ed-split-rows");
+    w.querySelectorAll("[data-esm]").forEach(s=> s.onchange = ()=> ED.split[+s.dataset.esm].method = s.value);
+    w.querySelectorAll("[data-esa]").forEach(inp=>{ inp.onfocus = ()=> inp.select(); inp.onchange = ()=>{ ED.split[+inp.dataset.esa].amount = Math.round(toNum(inp.value.replace(/\./g,""))); renderEdit(); }; });
+    w.querySelectorAll("[data-esf]").forEach(b=> b.onclick = ()=>{ const i = +b.dataset.esf; const other = ED.split.reduce((s,r,j)=> j===i ? s : s+(+r.amount||0), 0); ED.split[i].amount = Math.max(0, c.total-other); renderEdit(); });
+    w.querySelectorAll("[data-esx]").forEach(b=> b.onclick = ()=>{ ED.split.splice(+b.dataset.esx,1); renderEdit(); });
+  }
+  // ringkasan
+  const o = ED.orig; const amt = getMoney($("ed-amt"));
+  let payLine = "";
+  if(split){ const s = ED.split.reduce((a,r)=> a+(+r.amount||0),0); payLine = `<div class="sum-row"><span>Total split</span><b style="color:${s===c.total?"var(--green)":"var(--red)"}">${rp(s)} ${s===c.total?"✓":`(selisih ${rp(c.total-s)})`}</b></div>`; }
+  else if(ED.status==="paid" && ED.method==="Tunai") payLine = `<div class="sum-row"><span>Kembalian</span><b style="color:${amt>=c.total?"var(--ink)":"var(--red)"}">${amt>=c.total ? rp(amt-c.total) : "uang kurang " + rp(c.total-amt)}</b></div>`;
+  else if(ED.status==="credit") payLine = `<div class="sum-row"><span>Sisa piutang</span><b style="color:var(--amber)">${rp(Math.max(0, c.total - amt))}</b></div>`;
+  $("ed-sum").innerHTML = `<div class="sum-row"><span>Subtotal</span><b>${rp(c.subtotal)}</b></div>
+    ${c.discount?`<div class="sum-row"><span>Diskon</span><b>-${rp(c.discount)}</b></div>`:""}${c.tax+c.service?`<div class="sum-row"><span>Pajak + layanan</span><b>${rp(c.tax+c.service)}</b></div>`:""}${c.shipping?`<div class="sum-row"><span>Ongkir</span><b>${rp(c.shipping)}</b></div>`:""}
+    <div class="sum-row total"><span>TOTAL BARU</span><span class="num" style="font-size:22px">${rp(c.total)}</span></div>
+    ${c.total!==o.total?`<div class="sum-row"><span>Total sebelumnya</span><b class="faint" style="text-decoration:line-through">${rp(o.total)}</b></div>`:""}
+    ${payLine}
+    <div class="sum-row"><span>HPP / Laba bersih</span><b>${rp(c.totalCost)} / <span style="color:var(--green)">${rp(c.subtotal-c.discount-c.totalCost)}</span></b></div>`;
+  // peringatan stok
+  const diffs = stockDiffs(); const warn = $("ed-warn");
+  if(o.source==="import"){ warn.textContent = "Transaksi hasil import: perubahan item tidak mengubah stok."; warn.classList.remove("hide"); }
+  else if(diffs.length){ warn.innerHTML = "Stok akan disesuaikan: " + diffs.map(d=> `${esc(d.name)} ${d.delta>0?"+":""}${d.delta}`).join(", "); warn.classList.remove("hide"); }
+  else warn.classList.add("hide");
+}
+function stockDiffs(){ // positif = stok bertambah (qty di transaksi berkurang)
+  const m = {};
+  ED.orig.items.forEach(i=>{ if(i.productId) (m[i.productId] = m[i.productId] || {name:i.name, delta:0}).delta += i.qty; });
+  ED.items.forEach(i=>{ if(i.productId) (m[i.productId] = m[i.productId] || {name:i.name, delta:0}).delta -= i.qty; });
+  return Object.entries(m).filter(([,v])=> v.delta!==0).map(([id,v])=> ({id:+id, ...v}));
+}
+document.querySelectorAll("#ed-status [data-es]").forEach(b=> b.onclick = ()=>{
+  ED.status = b.dataset.es; const c = edCalc();
+  const prevDp = ED.orig.status==="paid" ? 0 : (ED.orig.paidAmount||0);
+  setMoney($("ed-amt"), ED.status==="paid" ? c.total : Math.min(prevDp, c.total - 1 < 0 ? 0 : c.total - 1)); renderEdit(); });
+document.querySelectorAll("#ed-method [data-em]").forEach(b=> b.onclick = ()=>{ ED.method = b.dataset.em; if(ED.status==="paid" && ED.method==="Tunai" && getMoney($("ed-amt")) < edCalc().total) setMoney($("ed-amt"), edCalc().total); renderEdit(); });
+["ed-disc","ed-ship","ed-tax","ed-svc","ed-amt"].forEach(id=> moneyInput($(id), ()=> renderEdit()));
+$("ed-split-add").onclick = ()=>{ ED.split.push({method:"Transfer", amount:0}); renderEdit(); };
+// tambah produk
+$("ed-add").addEventListener("input", debounce(()=>{
+  const q = $("ed-add").value.trim().toLowerCase(); const box = $("ed-add-res");
+  if(!q){ box.classList.remove("open"); return; }
+  const list = STATE.products.filter(p=> p.name.toLowerCase().includes(q) || (p.sku||"").toLowerCase()===q || (p.barcode||"")===q).slice(0,8);
+  box.innerHTML = list.map(p=> `<button class="gs-item" data-eadd="${p.id}"><span>${esc(p.name)} <span class="faint">• stok ${nf(p.stock)}</span></span><b>${rp(p.price)}</b></button>`).join("") || `<div class="gs-group" style="padding:12px">Produk tidak ditemukan</div>`;
+  box.classList.add("open");
+  box.querySelectorAll("[data-eadd]").forEach(b=> b.onclick = ()=>{
+    const p = STATE.products.find(x=> x.id===+b.dataset.eadd); const ex = ED.items.find(i=> i.productId===p.id);
+    if(ex) ex.qty++; else ED.items.push({productId:p.id, name:p.name, sku:p.sku||"", price:p.price, cost:p.cost||0, qty:1, subtotal:p.price, note:""});
+    $("ed-add").value = ""; box.classList.remove("open"); renderEdit();
+  });
+}, 120));
+$("ed-add").addEventListener("blur", ()=> setTimeout(()=> $("ed-add-res").classList.remove("open"), 200));
+
+$("ed-save").onclick = async ()=>{
+  const o = ED.orig; const c = edCalc(); const amt = getMoney($("ed-amt"));
+  if(!ED.items.length){ toast("Minimal 1 item", true); return; }
+  const dtVal = $("ed-dt").value; if(!dtVal){ toast("Isi tanggal & jam", true); return; }
+  const dt = new Date(dtVal);
+  // susun pembayaran
+  let payments, method, cashReceived = 0, change = 0, status;
+  const when = dt.toISOString();
+  if(ED.status==="paid"){
+    status = "paid";
+    if(ED.method==="Split"){
+      const rows = ED.split.filter(r=> +r.amount>0); const s = rows.reduce((a,r)=> a+(+r.amount),0);
+      if(s!==c.total){ toast(`Total split ${rp(s)} harus sama dengan tagihan ${rp(c.total)}`, true); return; }
+      const merged = {}; rows.forEach(r=> merged[r.method] = (merged[r.method]||0) + (+r.amount));
+      payments = Object.entries(merged).map(([m,a])=> ({method:m, amount:a, datetime:when}));
+      method = payments.length>1 ? "Split" : payments[0].method;
+      cashReceived = merged.Tunai || 0;
+    } else {
+      method = ED.method;
+      if(method==="Tunai"){ cashReceived = amt || c.total; if(cashReceived < c.total){ toast("Uang diterima kurang dari total", true); return; } change = cashReceived - c.total; }
+      payments = [{method, amount:c.total, ref:$("ed-ref").value.trim(), datetime:when}];
+    }
+  } else {
+    method = ED.method; const dp = Math.min(amt, c.total);
+    if(dp>=c.total){ toast("DP sama dengan total — pilih status Lunas", true); return; }
+    payments = dp>0 ? [{method, amount:dp, datetime:when}] : []; status = dp>0 ? "partial" : "unpaid";
+    if(method==="Tunai") cashReceived = dp;
+  }
+  const paidAmount = payments.reduce((s,p)=> s+p.amount, 0);
+  const t = {...o,
+    datetime: dt.toISOString(), dateKey: dateKey(dt), cashier: $("ed-kasir").value.trim() || o.cashier, channel: $("ed-channel").value,
+    customer: {...(o.customer||{}), name:$("ed-cust").value.trim(), phone:$("ed-phone").value.trim(), table:$("ed-table").value.trim()},
+    items: ED.items.map(i=> ({...i, qty:Math.round(i.qty), price:Math.round(i.price), subtotal:Math.round(i.price*i.qty)})),
+    subtotal:c.subtotal, discount:c.discount, tax:c.tax, service:c.service, shipping:c.shipping, total:c.total,
+    totalCost:c.totalCost, profit:c.subtotal - c.discount - c.totalCost,
+    method, payments, cashReceived, change, paidAmount, outstanding: Math.max(0, c.total - paidAmount), status,
+    settledAt: status==="paid" ? (o.settledAt || null) : null, orderStatus: $("ed-ost").value, note: $("ed-note").value.trim(),
+  };
+  // ringkasan perubahan
+  const ch = [];
+  const mLbl = (x)=> x.status==="paid" ? `Lunas ${x.method}` : `Piutang (${x.method})`;
+  if(mLbl(o)!==mLbl(t)) ch.push(`pembayaran ${mLbl(o)} → ${mLbl(t)}`);
+  if(o.total!==t.total) ch.push(`total ${rp(o.total)} → ${rp(t.total)}`);
+  const itemStr = (x)=> x.items.map(i=> `${i.qty}x ${i.name}@${i.price}`).join(", ");
+  if(itemStr(o)!==itemStr(t)) ch.push(`item: ${t.items.map(i=> `${i.qty}x ${i.name}`).join(", ")}`);
+  if(o.dateKey!==t.dateKey || toLocalInput(o.datetime)!==toLocalInput(t.datetime)) ch.push(`waktu ${toLocalInput(o.datetime).replace("T"," ")} → ${toLocalInput(t.datetime).replace("T"," ")}`);
+  if((o.cashier||"")!==t.cashier) ch.push(`kasir ${o.cashier} → ${t.cashier}`);
+  if((o.customer?.name||"")!==t.customer.name || (o.customer?.table||"")!==t.customer.table) ch.push("data pelanggan");
+  if((o.note||"")!==t.note) ch.push("catatan"); if((o.orderStatus||"Baru")!==t.orderStatus) ch.push(`status pesanan → ${t.orderStatus}`);
+  if(o.channel!==t.channel) ch.push(`channel → ${t.channel}`);
+  if(!ch.length){ toast("Tidak ada perubahan"); closeModal("m-edit"); return; }
+  const reason = $("ed-reason").value.trim();
+  t.editLog = [...(o.editLog||[]), {at:new Date().toISOString(), user:STATE.currentUser?.name||"-", summary: ch.join("; ") + (reason ? ` — alasan: ${reason}` : "")}];
+  if(!(await confirmBox(`Simpan perubahan transaksi ${o.orderNo}?\n\n• ${ch.join("\n• ")}`, {ok:"Simpan", danger:false}))) return;
+  const diffs = o.source==="import" ? [] : stockDiffs();
+  await new Promise((res, rej)=>{
+    const x = db.transaction(["transactions","products","stockMoves"], "readwrite"); const ps = x.objectStore("products"), ms = x.objectStore("stockMoves");
+    diffs.forEach(d=>{ const p = STATE.products.find(pp=> pp.id===d.id); if(p && p.trackStock){ p.stock += d.delta; p.updatedAt = new Date().toISOString(); ps.put(p); logMove(ms, p, d.delta, d.delta>0 ? "Pengembalian" : "Penjualan", "Edit " + o.orderNo); } });
+    x.objectStore("transactions").put(t); x.oncomplete = res; x.onerror = ()=> rej(x.error);
+  });
+  closeModal("m-edit"); await loadAll(); await computeSalesCount();
+  toast("Transaksi diperbarui", "ok"); renderRekap(); scheduleAutoBackup();
+};
 </script>
 <script>
 /* ============================================================
