@@ -904,6 +904,25 @@ table.tbl input[type=checkbox]{width:18px; height:18px; accent-color:var(--green
               </div>
 
               <div id="owner-only">
+                <div class="set-card" style="margin-bottom:18px; border-color:#BFE3CF;">
+                  <h3><svg class="i sm"><use href="#ic-refresh"/></svg>Sinkron ke Google Sheets <span class="badge green" style="margin-left:4px;">Laporan owner jarak jauh</span></h3>
+                  <p class="desc">Tablet tetap jalan offline. Setiap ada internet, transaksi &amp; stok dikirim otomatis ke Google Sheet milik owner, dan owner bisa melihat laporan dari HP mana pun lewat link dashboard.</p>
+                  <div class="row" style="justify-content:space-between; margin-bottom:12px;"><div id="sync-status"></div><label class="row" style="font-size:13.5px; font-weight:600;">Aktif <label class="switch"><input type="checkbox" id="sync-enabled"><span></span></label></label></div>
+                  <div class="field"><label>URL Web App Google Apps Script</label><input class="input" id="sync-url" placeholder="https://script.google.com/macros/s/……/exec" autocomplete="off"></div>
+                  <div class="grid2">
+                    <div class="field"><label>Kode rahasia (sama dengan KODE_RAHASIA di Code.gs)</label><div class="row"><input class="input" id="sync-token" autocomplete="off"><button class="btn sm" id="sync-token-gen" type="button" title="Buat kode acak">Buat</button></div></div>
+                    <div class="field"><label>Nama perangkat ini</label><input class="input" id="sync-device" placeholder="Tablet Kasir 1"></div>
+                  </div>
+                  <div class="row" style="flex-wrap:wrap;">
+                    <button class="btn primary" id="sync-save"><svg class="i sm"><use href="#ic-check"/></svg>Simpan</button>
+                    <button class="btn" id="sync-test">Tes Koneksi</button>
+                    <button class="btn" id="sync-now"><svg class="i sm"><use href="#ic-refresh"/></svg>Sinkron Sekarang</button>
+                    <button class="btn" id="sync-resend">Kirim Ulang Semua</button>
+                  </div>
+                  <div class="field" style="margin-top:14px;"><label>Link dashboard owner (buka di HP owner)</label>
+                    <div class="row"><input class="input" id="sync-owner-link" readonly style="background:var(--surface-2); font-size:12.5px;"><button class="btn sm" id="sync-copy">Salin</button><button class="btn sm soft-green" id="sync-wa">Kirim WA</button></div>
+                    <div class="hint">Link berisi kode rahasia — kirim hanya ke owner. Transaksi yang dihapus/dibatalkan di Rekap ikut diperbarui di Sheet; "Hapus Riwayat" di Zona Berbahaya tidak menghapus arsip di Sheet.</div></div>
+                </div>
                 <div class="set-card" style="margin-bottom:18px;">
                   <h3><svg class="i sm"><use href="#ic-users"/></svg>Kelola Pengguna</h3>
                   <p class="desc">Owner: akses penuh. Admin: kasir, stok, rekap (tanpa laba/HPP). Kasir: hanya layar kasir.</p>
@@ -1643,6 +1662,7 @@ function applyRole(){
   document.body.classList.toggle("no-profit", !canSeeProfit());
 }
 function updateNet(){
+  if(typeof syncOn==="function" && syncOn() && typeof SYNC!=="undefined"){ if(!SYNC.busy) renderSyncStatus(); return; }
   $("net-text").textContent = navigator.onLine ? "Online • data lokal" : "Offline • data lokal";
 }
 window.addEventListener("online", updateNet); window.addEventListener("offline", updateNet);
@@ -2867,7 +2887,7 @@ function renderRekapTable(){
   $("rk-chk-all").onchange = (e)=>{ items.forEach(t=> e.target.checked ? RK.sel.add(t.id) : RK.sel.delete(t.id)); renderRekapTable(); };
   $("rk-tbody").querySelectorAll("[data-rsel]").forEach(c=> c.onchange = ()=>{ const id = +c.dataset.rsel; c.checked ? RK.sel.add(id) : RK.sel.delete(id); updRkBulk(); });
   $("rk-tbody").querySelectorAll("[data-exp]").forEach(b=> b.onclick = ()=>{ const id = +b.dataset.exp; RK.open.has(id) ? RK.open.delete(id) : RK.open.add(id); renderRekapTable(); });
-  $("rk-tbody").querySelectorAll("[data-ost]").forEach(s=> s.onchange = async ()=>{ const t = RK.all.find(x=> x.id===+s.dataset.ost); t.orderStatus = s.value; await Store.put("transactions", t); s.parentElement.className = "ost s-"+s.value; });
+  $("rk-tbody").querySelectorAll("[data-ost]").forEach(s=> s.onchange = async ()=>{ const t = RK.all.find(x=> x.id===+s.dataset.ost); t.orderStatus = s.value; await Store.put("transactions", t); s.parentElement.className = "ost s-"+s.value; scheduleSync(); });
   renderPager($("rk-pg"), RK, RK.filtered.length, ()=> RK.view==="table" ? renderRekapTable() : renderRekapCards());
   updRkBulk();
 }
@@ -2989,7 +3009,7 @@ async function showTrxDetail(id){
   $("trx-foot").innerHTML = `${t.status!=="refunded" && canAccess("rekap")?`<button class="btn danger" id="trx-refund" style="margin-right:auto">${ic("undo")}Batalkan / Refund</button>`:""}
     ${t.outstanding>0 && t.status!=="refunded"?`<button class="btn soft-green" id="trx-settle">${ic("wallet")}Pelunasan</button>`:""}
     <button class="btn" id="trx-print">${ic("printer")}Cetak Struk</button><button class="btn primary" data-close>Tutup</button>`;
-  $("trx-note-save").onclick = async ()=>{ t.note = $("trx-note").value.trim(); await Store.put("transactions", t); toast("Catatan disimpan","ok"); if(STATE.view==="rekap") renderRekap(false); };
+  $("trx-note-save").onclick = async ()=>{ t.note = $("trx-note").value.trim(); await Store.put("transactions", t); scheduleSync(); toast("Catatan disimpan","ok"); if(STATE.view==="rekap") renderRekap(false); };
   $("trx-print").onclick = ()=> printReceipt(t);
   $("trx-refund") && ($("trx-refund").onclick = ()=>{ closeModal("m-trx"); refundTrx(t.id); });
   $("trx-settle") && ($("trx-settle").onclick = ()=>{ closeModal("m-trx"); openSettle(t.id); });
@@ -3041,6 +3061,7 @@ async function deleteTrx(ids){
       x.objectStore("transactions").delete(t.id); RK.sel.delete(t.id); });
     x.oncomplete = res; x.onerror = ()=> rej(x.error);
   });
+  await queueDelete(list.map(t=> t.orderNo));
   await loadAll(); toast(`${list.length} transaksi dihapus`); renderRekap(); scheduleAutoBackup();
 }
 
@@ -3149,6 +3170,138 @@ async function runRekapImport(){
 </script>
 <script>
 /* ============================================================
+   20b. SINKRON KE GOOGLE SHEETS (laporan owner jarak jauh)
+   - Tablet tetap offline-first; data dikirim saat ada internet.
+   - Transaksi baru/berubah dideteksi lewat "tanda tangan" (signature),
+     jadi tidak ada yang terlewat walau tablet offline berhari-hari.
+   ============================================================ */
+const SYNC = { busy:false, timer:null, pending:0, last:null, error:"" };
+const syncCfg = ()=> STATE.settings.sync || {};
+const syncOn = ()=> { const c = syncCfg(); return !!(c.enabled && c.url && c.token); };
+function scheduleSync(ms=3000){ if(!syncOn()) return; clearTimeout(SYNC.timer); SYNC.timer = setTimeout(()=> runSync(), ms); }
+function trxSig(t){ return [t.status, t.outstanding, t.paidAmount, t.orderStatus||"", t.note||"", t.method, t.total, (t.payments||[]).length, t.customer?.name||"", t.customer?.table||""].join("|"); }
+function strHash(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36) + ":" + s.length; }
+async function metaGet(k, def){ const r = await Store.get("meta", k); return r ? r.v : def; }
+async function metaSet(k, v){ await Store.put("meta", {key:k, v}); }
+async function queueDelete(orderNos){ const list = await metaGet("syncDel", []); orderNos.forEach(n=> { if(!list.includes(n)) list.push(n); }); await metaSet("syncDel", list); }
+
+function syncTrxRow(t){
+  const cu = t.customer||{}; const d = new Date(t.datetime); const refunded = t.status==="refunded";
+  const cash = (t.payments||[]).filter(p=> p.method==="Tunai").reduce((s,p)=> s+p.amount, 0);
+  const qty = t.items.reduce((s,i)=> s+i.qty, 0);
+  return [t.orderNo, t.dateKey, t.source==="import" ? "" : `${pad(d.getHours())}:${pad(d.getMinutes())}`, t.channel||"Offline",
+    cu.name||"", cu.table||"", cu.phone||"", t.cashier||"-", t.method||"", t.status,
+    t.subtotal||0, t.discount||0, t.tax||0, t.service||0, t.shipping||0, t.total||0, t.totalCost||0, refunded ? 0 : (t.profit||0),
+    t.paidAmount||0, t.outstanding||0, refunded ? 0 : cash, t.orderStatus||"", t.note||"", qty,
+    t.items.map(i=> `${i.qty}x ${i.name}`).join(", ").slice(0, 400), t.gudang||"", syncCfg().device||"Tablet", t.source||"pos", new Date().toISOString()];
+}
+function syncItemRows(t){
+  const d = new Date(t.datetime); const time = t.source==="import" ? "" : `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const disc = allocate(t.discount||0, t.items.map(i=> i.subtotal));
+  return t.items.map((i,k)=>{
+    const p = STATE.products.find(x=> x.id===i.productId) || STATE.products.find(x=> x.name.trim().toLowerCase()===i.name.trim().toLowerCase());
+    const omzet = i.subtotal - disc[k], hpp = (i.cost||0)*i.qty;
+    return [`${t.orderNo}#${k+1}`, t.orderNo, t.dateKey, time, i.name, i.sku||"", p ? catName(p.category) : "-", i.qty, i.price, i.subtotal, disc[k],
+      omzet, hpp, omzet-hpp, t.status, t.method||"", t.cashier||"-", syncCfg().device||"Tablet"];
+  });
+}
+async function postSync(payload){
+  const c = syncCfg();
+  const ctrl = new AbortController(); const to = setTimeout(()=> ctrl.abort(), 45000);
+  try{
+    // body text/plain → tanpa preflight CORS (wajib untuk Google Apps Script)
+    const res = await fetch(c.url.trim(), {method:"POST", body:JSON.stringify({...payload, token:c.token, device:c.device||"Tablet", store:STATE.settings.storeName}), redirect:"follow", signal:ctrl.signal});
+    const txt = await res.text(); let j;
+    try{ j = JSON.parse(txt); }catch(e){ throw new Error(/<html/i.test(txt) ? "URL bukan Web App yang benar / akses belum 'Anyone'" : "Balasan server tidak dikenali"); }
+    if(!j.ok) throw new Error(j.error || "Ditolak server");
+    return j;
+  } catch(err){ if(err.name==="AbortError") throw new Error("Waktu habis (koneksi lambat)"); if(err instanceof TypeError) throw new Error("Tidak bisa terhubung (offline / URL salah)"); throw err; }
+  finally { clearTimeout(to); }
+}
+async function computePending(){
+  const sig = await metaGet("syncSig", {}); const del = await metaGet("syncDel", []);
+  const all = await Store.all("transactions");
+  const pend = all.filter(t=> sig[t.orderNo] !== trxSig(t));
+  const prodRows = stokRows(STATE.products.slice().sort((a,b)=> a.name.localeCompare(b.name)));
+  const prodHash = strHash(JSON.stringify(prodRows)); const prodChanged = prodHash !== await metaGet("syncProdHash", "");
+  SYNC.pending = pend.length + del.length;
+  return {sig, del, pend, prodRows, prodHash, prodChanged};
+}
+async function runSync(manual=false){
+  if(!syncOn()){ if(manual) toast("Sinkron belum diaktifkan / URL & kode belum diisi", true); return; }
+  if(SYNC.busy){ if(manual) toast("Sinkron sedang berjalan…"); return; }
+  if(!navigator.onLine){ await computePending(); SYNC.error = "Offline — menunggu internet"; renderSyncStatus(); if(manual) toast("Tablet sedang offline. Data akan dikirim otomatis saat online.", true); return; }
+  SYNC.busy = true; renderSyncStatus();
+  try{
+    let {sig, del, pend, prodRows, prodHash, prodChanged} = await computePending();
+    if(!pend.length && !del.length && !prodChanged){ SYNC.error = ""; if(manual) toast("Semua data sudah tersinkron ✓", "ok"); return; }
+    const BATCH = 100; let sent = 0, first = true;
+    while(first || pend.length){
+      const chunk = pend.splice(0, BATCH);
+      const payload = { action:"sync", trx: chunk.map(t=> ({orderNo:t.orderNo, row:syncTrxRow(t), items:syncItemRows(t)})),
+        deletes: first ? del : [], products: first && prodChanged ? prodRows.map(r=> [...r, new Date().toISOString()]) : [], productsChanged: first && prodChanged };
+      await postSync(payload);
+      chunk.forEach(t=> sig[t.orderNo] = trxSig(t)); await metaSet("syncSig", sig);
+      if(first){ if(del.length){ const cur = await metaGet("syncDel", []); await metaSet("syncDel", cur.filter(n=> !del.includes(n))); } if(prodChanged) await metaSet("syncProdHash", prodHash); }
+      sent += chunk.length; first = false; SYNC.pending = pend.length; renderSyncStatus();
+    }
+    SYNC.last = new Date(); SYNC.error = ""; await metaSet("syncLast", SYNC.last.toISOString());
+    await computePending();
+    if(manual) toast(`Sinkron berhasil: ${sent} transaksi terkirim`, "ok");
+  }catch(err){
+    console.warn("Sinkron gagal", err); SYNC.error = err.message || String(err); await computePending().catch(()=>{});
+    if(manual) toast("Sinkron gagal: " + SYNC.error, true);
+  }finally{ SYNC.busy = false; renderSyncStatus(); }
+}
+function renderSyncStatus(){
+  // pil status di header
+  const pill = $("net-pill"); const txt = $("net-text");
+  if(syncOn()){
+    if(SYNC.busy){ txt.textContent = "Menyinkron…"; pill.style.background = "var(--blue-soft)"; pill.style.color = "var(--blue)"; }
+    else if(SYNC.pending){ txt.textContent = `${SYNC.pending} belum tersinkron`; pill.style.background = "var(--amber-soft)"; pill.style.color = "#B45309"; }
+    else { txt.textContent = SYNC.last ? `Tersinkron ${timeStr(SYNC.last)}` : "Sinkron aktif"; pill.style.background = ""; pill.style.color = ""; }
+    pill.title = SYNC.error ? "Sinkron: " + SYNC.error : "Sinkron Google Sheets aktif";
+  } else { pill.style.background = ""; pill.style.color = ""; updateNet(); }
+  // panel di Setelan
+  const st = $("sync-status"); if(!st) return;
+  if(!syncOn()){ st.innerHTML = `<span class="badge gray">Nonaktif</span>`; return; }
+  st.innerHTML = `${SYNC.busy ? `<span class="badge blue">Menyinkron…</span>` : SYNC.error ? `<span class="badge red">Gagal</span>` : SYNC.pending ? `<span class="badge amber">Menunggu</span>` : `<span class="badge green">Tersinkron</span>`}
+    <span class="muted" style="font-size:13px; margin-left:6px;">${SYNC.pending} data antre • terakhir: ${SYNC.last ? fmtDateTime(SYNC.last.toISOString()) : "belum pernah"}</span>
+    ${SYNC.error ? `<div style="color:var(--red); font-size:12.5px; margin-top:6px;">${esc(SYNC.error)}</div>` : ""}`;
+}
+function renderSyncSettings(){
+  const c = syncCfg();
+  $("sync-url").value = c.url||""; $("sync-token").value = c.token||""; $("sync-device").value = c.device||"Tablet Kasir 1"; $("sync-enabled").checked = !!c.enabled;
+  $("sync-owner-link").value = c.url && c.token ? `${c.url.trim()}?key=${encodeURIComponent(c.token)}` : "";
+  computePending().then(renderSyncStatus);
+}
+async function saveSyncSettings(){
+  const url = $("sync-url").value.trim(), token = $("sync-token").value.trim();
+  if($("sync-enabled").checked && (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url) || !token)){ toast("Isi URL Web App (https://script.google.com/…/exec) dan kode rahasia", true); return false; }
+  STATE.settings.sync = { url, token, device:$("sync-device").value.trim()||"Tablet", enabled:$("sync-enabled").checked };
+  await Store.put("settings", STATE.settings); renderSyncSettings(); return true;
+}
+$("sync-save").onclick = async ()=>{ if(await saveSyncSettings()){ toast("Pengaturan sinkron disimpan", "ok"); scheduleSync(500); } };
+$("sync-test").onclick = async ()=>{
+  const url = $("sync-url").value.trim(), token = $("sync-token").value.trim(); if(!url || !token){ toast("Isi URL dan kode rahasia dulu", true); return; }
+  const prev = STATE.settings.sync; STATE.settings.sync = {...(prev||{}), url, token, device:$("sync-device").value.trim()};
+  try{ const r = await postSync({action:"ping"}); toast(`Terhubung ke "${r.sheet}" ✓`, "ok"); }
+  catch(e){ toast("Gagal: " + e.message, true); } finally { STATE.settings.sync = prev; }
+};
+$("sync-now").onclick = async ()=>{ if(await saveSyncSettings()) runSync(true); };
+$("sync-resend").onclick = async ()=>{
+  if(!(await confirmBox("Kirim ulang SEMUA transaksi & stok ke Google Sheet? Data yang sama akan diperbarui (tidak dobel).", {ok:"Kirim ulang", danger:false}))) return;
+  await metaSet("syncSig", {}); await metaSet("syncProdHash", ""); if(await saveSyncSettings()) runSync(true);
+};
+$("sync-copy").onclick = async ()=>{ const v = $("sync-owner-link").value; if(!v) return; try{ await navigator.clipboard.writeText(v); toast("Link laporan owner disalin", "ok"); }catch(e){ $("sync-owner-link").select(); toast("Salin manual dari kolom link"); } };
+$("sync-wa").onclick = ()=>{ const v = $("sync-owner-link").value; if(!v) return; window.open("https://wa.me/?text=" + encodeURIComponent("Link laporan penjualan JAJAN (simpan, jangan disebar):\n" + v), "_blank"); };
+$("sync-token-gen").onclick = ()=>{ const a = new Uint8Array(12); crypto.getRandomValues(a); $("sync-token").value = "JJN-" + Array.from(a, b=> b.toString(36).padStart(2,"0")).join("").slice(0,18).toUpperCase(); toast("Kode dibuat — salin juga ke Code.gs (KODE_RAHASIA)"); };
+window.addEventListener("online", ()=> scheduleSync(1500));
+setInterval(()=> scheduleSync(0), 120000);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") scheduleSync(1000); });
+</script>
+<script>
+/* ============================================================
    21. PENGATURAN
    ============================================================ */
 function renderSettings(){
@@ -3160,7 +3313,7 @@ function renderSettings(){
   $("set-quick").value = s.quickCash||""; $("set-remind").checked = s.remindBackup!==false;
   $("printer-paper").value = String(s.paperWidth||58); $("printer-mode").value = s.printMode||"dialog"; updPrinterUi(); renderBtStatus();
   $("owner-only").classList.toggle("hide", !isOwner()); if(isOwner()) renderUsers();
-  showLastBackup(); renderAutoBackupStatus();
+  showLastBackup(); renderAutoBackupStatus(); if(isOwner()) renderSyncSettings();
 }
 $("btn-save-settings").onclick = async ()=>{
   Object.assign(STATE.settings, {
@@ -3271,7 +3424,7 @@ $("input-restore").onchange = (e)=>{
 };
 // --- backup otomatis (File System Access API, Chrome/Edge desktop) ---
 const AB_OK = "showSaveFilePicker" in window; let _abTimer = null, _abBusy = false;
-function scheduleAutoBackup(){ if(!AB_OK) return; clearTimeout(_abTimer); _abTimer = setTimeout(runAutoBackup, 1500); }
+function scheduleAutoBackup(){ scheduleSync(); if(!AB_OK) return; clearTimeout(_abTimer); _abTimer = setTimeout(runAutoBackup, 1500); }
 async function runAutoBackup(){
   if(_abBusy) return scheduleAutoBackup(); _abBusy = true;
   try{ const rec = await Store.get("filehandle","auto"); if(!rec) return; const h = rec.handle;
@@ -3356,6 +3509,8 @@ if(navigator.storage?.persist) navigator.storage.persist().catch(()=>{}); // min
 (async function init(){
   try{
     await openDB(); await seedIfEmpty(); await loadAll(); await computeSalesCount(); updateNet();
+    const ls = await metaGet("syncLast", null); if(ls) SYNC.last = new Date(ls);
+    if(syncOn()){ computePending().then(renderSyncStatus); scheduleSync(4000); }
     $("cart-clock").textContent = longNow();
     const sess = await Store.get("session","current"); const u = sess && await Store.get("users", sess.userId);
     if(u && u.active!==false){ STATE.currentUser = {id:u.id, name:u.name, username:u.username, role:u.role}; $("login-screen").classList.add("hidden"); applyRole(); switchView(ROLE_PERMS[u.role][0]); }
